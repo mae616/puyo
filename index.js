@@ -14,12 +14,50 @@ clivas.pin(HEIGHT);
 
 const randomColor = () => color[Math.floor(Math.random() * color.length)];
 
-const fields = new Array(WIDTH).fill("").map(() => new Array(HEIGHT).fill("."));
+let fields = new Array(WIDTH).fill("").map(() => new Array(HEIGHT).fill("."));
 
-fields[2][0] = "red";
-fields[2][1] = "green";
-
+// 落ちる処理
+const fall = (fields) => {
+  for (let column = WIDTH - 1; column >= 0; column--) {
+    for (let row = HEIGHT - 1; row >= 0; row--) {
+      if (fields[column][row].startsWith("ACT:")) {
+        if (
+          row + 1 === HEIGHT ||
+          (fields[column][row + 1] !== "." &&
+            !fields[column][row + 1].startsWith("ACT:"))
+        ) {
+          // もう落ちれない ACT: を取り除く(一応の処理)
+          fields[column][row] = fields[column][row].split(":")[1];
+        } else if (
+          row + 2 === HEIGHT ||
+          (fields[column][row + 2] !== "." &&
+            !fields[column][row + 2].startsWith("ACT:"))
+        ) {
+          // 1個落ちたあと、もう落ちれない ACT: を取り除く(通常時この処理に入る)
+          fields[column][row + 1] = fields[column][row].split(":")[1];
+          fields[column][row] = ".";
+        } else {
+          // まだ落ちれる
+          fields[column][row + 1] = fields[column][row];
+          fields[column][row] = ".";
+        }
+      }
+    }
+  }
+  return fields;
+};
 const draw = () => {
+  // すでに落ちているものがない場合
+  if (!fields.some((column) => column.some((row) => row.startsWith("ACT:")))) {
+    // 落とす処理
+    fields[2][0] = `ACT:${randomColor()}`;
+    fields[2][1] = `ACT:${randomColor()}`;
+  } else {
+    // 落ちる処理
+    fields = fall(fields);
+  }
+
+  // 行と列を入れ替える処理
   const fields2 = new Array(HEIGHT)
     .fill("")
     .map(() => new Array(WIDTH).fill("."));
@@ -29,12 +67,15 @@ const draw = () => {
     }
   }
 
+  clivas.clear();
   clivas.line("{white:┌──────────┐}");
   for (const row of fields2) {
     clivas.write("{white:│}");
     for (const column of row) {
       if (column === ".") {
         clivas.write("{2}");
+      } else if (column.startsWith("ACT:")) {
+        clivas.write(`{2+${column.split(":")[1]}:●}`);
       } else {
         clivas.write(`{2+${column}:●}`);
       }
@@ -46,9 +87,6 @@ const draw = () => {
 
 let flame = 0;
 setInterval(function () {
-  clivas.clear();
-  fields[2].pop();
-  fields[2].unshift(".");
   draw();
   flame++;
 }, 800);
